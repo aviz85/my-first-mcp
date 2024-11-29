@@ -1,6 +1,23 @@
-# Calendar Assistant MCP
+# OS Control MCP Servers
 
-A Model Context Protocol (MCP) server for Google Calendar integration, allowing AI assistants to manage your calendar efficiently.
+A collection of Model Context Protocol (MCP) servers for controlling different operating systems through Claude.
+
+## Available Servers
+
+### 1. Calendar Assistant
+Manages Google Calendar events and meetings (works on all operating systems).
+
+### 2. Mac Control
+Controls macOS system functions using AppleScript and shell commands (macOS only).
+
+### 3. Windows Control
+Controls Windows system functions using PowerShell and CMD commands (Windows only).
+
+## Important Note ⚠️
+Configure only the servers appropriate for your operating system:
+- On macOS: Use Calendar and Mac Control servers only
+- On Windows: Use Calendar and Windows Control servers only
+- Do not configure both Mac and Windows servers on the same machine
 
 ## Setup
 
@@ -11,32 +28,48 @@ uv pip install -e .
 pip install -r requirements.txt
 ```
 
-2. Set up Google Calendar API:
-   - Go to [Google Cloud Console](https://console.cloud.google.com)
-   - Create a new project
-   - Enable Google Calendar API
-   - Create OAuth 2.0 credentials (Desktop app)
-   - Download `credentials.json` to project root
+2. Configure Claude Desktop based on your OS:
 
-3. Configure Claude Desktop:
+### For macOS:
 ```json
 {
   "mcpServers": {
     "calendar": {
       "command": "/path/to/venv/bin/python",
       "args": ["/path/to/src/calendar_assistant/server.py"]
+    },
+    "mac": {
+      "command": "/path/to/venv/bin/python",
+      "args": ["/path/to/src/mac_control/server.py"]
     }
   }
 }
 ```
-Replace paths with your actual paths:
+
+### For Windows:
+```json
+{
+  "mcpServers": {
+    "calendar": {
+      "command": "C:\\path\\to\\venv\\Scripts\\python.exe",
+      "args": ["C:\\path\\to\\src\\calendar_assistant\\server.py"]
+    },
+    "win": {
+      "command": "C:\\path\\to\\venv\\Scripts\\python.exe",
+      "args": ["C:\\path\\to\\src\\win_control\\server.py"]
+    }
+  }
+}
+```
+
+Config file locations:
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Linux: `~/.config/Claude/claude_desktop_config.json`
 
 ## Usage
 
-Available commands:
+### Calendar Commands
 
 1. Quick add event:
 ```
@@ -50,55 +83,77 @@ Available commands:
 /mcp calendar call next {}
 ```
 
-3. Cancel next meeting:
-```
-/mcp calendar call cancel_next {
-  "notify": true
-}
-```
-
-4. Find free time today:
+3. Find free time:
 ```
 /mcp calendar call free_today {
   "min_duration": 30
 }
 ```
 
-5. View today's events:
+### Mac Control Commands
+
+1. Run AppleScript:
 ```
-/mcp calendar read calendar://events/today
+/mcp mac call applescript {
+  "script": "tell application \"System Events\" to get name of every process"
+}
 ```
 
-## First Run
+2. Control volume:
+```
+/mcp mac call volume {
+  "level": 50
+}
+```
 
-On first run, the server will:
-1. Look for `credentials.json` in project root
-2. Open browser for Google OAuth authentication
-3. Save authentication token as `token.json`
+3. Send notification:
+```
+/mcp mac call notification {
+  "title": "Hello",
+  "message": "Time for a break!"
+}
+```
 
-## Troubleshooting
+### Windows Control Commands
 
-1. **Authentication Issues**:
-   - Ensure `credentials.json` is in project root
-   - Delete `token.json` and re-authenticate if needed
-   - Check logs at `/tmp/calendar_assistant.log`
+1. Run PowerShell:
+```
+/mcp win call powershell {
+  "script": "Get-Process | Select-Object -First 5"
+}
+```
 
-2. **Connection Issues**:
-   - Verify paths in `claude_desktop_config.json`
-   - Ensure Python virtual environment is activated
-   - Check Claude Desktop is running
+2. Run CMD:
+```
+/mcp win call cmd {
+  "command": "dir C:\\"
+}
+```
 
-3. **Permission Issues**:
-   - Make sure your Google account is added as a test user
-   - Enable necessary Calendar API scopes
-   - Check Google Cloud Console for API quotas
+3. Lock Windows:
+```
+/mcp win call lock {}
+```
+
+4. Take screenshot:
+```
+/mcp win call screenshot {
+  "path": "C:\\Users\\YourName\\Desktop\\shot.png"
+}
+```
 
 ## Project Structure
 
 ```
 .
 ├── src/
-│   └── calendar_assistant/
+│   ├── calendar_assistant/
+│   │   ├── __init__.py
+│   │   └── server.py
+│   ├── mac_control/
+│   │   ├── __init__.py
+│   │   └── server.py
+│   └── win_control/
 │       ├── __init__.py
 │       └── server.py
 ├── credentials.json
@@ -107,11 +162,46 @@ On first run, the server will:
 └── README.md
 ```
 
-## Security Note
+## Setup Notes
 
-- Never commit `credentials.json` or `token.json`
-- Keep your Google Cloud project credentials secure
-- Review OAuth consent screen settings regularly
+### Calendar Assistant
+- Requires Google Calendar API credentials
+- Place `credentials.json` in project root
+- Will authenticate on first run
+
+### Mac Control
+- Requires macOS
+- Uses AppleScript and shell commands
+- No additional setup needed
+
+### Windows Control
+- Requires Windows
+- Uses PowerShell and CMD
+- Requires admin rights for some commands
+
+## Security Notes
+
+- Never commit sensitive files (`credentials.json`, `token.json`)
+- Be careful with shell/PowerShell commands
+- Review scripts before execution
+- Use with trusted input only
+
+## Troubleshooting
+
+1. **Server Connection Issues**:
+   - Check paths in `claude_desktop_config.json`
+   - Ensure Python virtual environment is activated
+   - Check logs in `/tmp/` or `%APPDATA%\Local\`
+
+2. **Permission Issues**:
+   - Run as admin for certain Windows commands
+   - Check file permissions
+   - Verify API access for Calendar
+
+3. **Command Failures**:
+   - Check log files for detailed errors
+   - Verify command syntax
+   - Check system requirements
 
 ## License
 
