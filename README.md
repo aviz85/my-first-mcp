@@ -1,23 +1,53 @@
 # OS Control MCP Servers
 
-A collection of Model Context Protocol (MCP) servers for controlling different operating systems through Claude.
+A collection of Model Context Protocol (MCP) servers that let you control your computer by talking naturally with Claude.
 
 ## Available Servers
 
 ### 1. Calendar Assistant
-Manages Google Calendar events and meetings (works on all operating systems).
+Manages your Google Calendar - just tell Claude what you want to do with your calendar (works on all operating systems).
 
 ### 2. Mac Control
-Controls macOS system functions using AppleScript and shell commands (macOS only).
+Controls your Mac - just describe what you want to do in natural language (macOS only).
 
 ### 3. Windows Control
-Controls Windows system functions using PowerShell and CMD commands (Windows only).
+Controls your Windows PC - just tell Claude what you want to do (Windows only).
 
 ## Important Note ⚠️
 Configure only the servers appropriate for your operating system:
 - On macOS: Use Calendar and Mac Control servers only
 - On Windows: Use Calendar and Windows Control servers only
 - Do not configure both Mac and Windows servers on the same machine
+
+## Examples
+
+### Calendar Assistant
+Just tell Claude what you want:
+- "Schedule a team meeting for tomorrow at 2pm"
+- "What's my next meeting?"
+- "When am I free today?"
+- "Cancel my next meeting"
+
+### Mac Control
+Tell Claude naturally:
+- "Turn down the volume to 50%"
+- "Send me a notification in 30 minutes to take a break"
+- "What processes are running right now?"
+- "Show me all my Chrome windows"
+
+### Windows Control
+Just ask Claude:
+- "Lock my computer"
+- "Take a screenshot"
+- "What's using the most CPU right now?"
+- "Show me what's in my Downloads folder"
+
+## How It Works
+1. Just chat with Claude normally
+2. Tell it what you want to do with your computer
+3. Claude will understand and use the appropriate commands behind the scenes
+
+No need to remember specific commands or syntax - Claude handles that for you!
 
 ## Setup
 
@@ -66,81 +96,6 @@ Config file locations:
 - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Linux: `~/.config/Claude/claude_desktop_config.json`
-
-## Usage
-
-### Calendar Commands
-
-1. Quick add event:
-```
-/mcp calendar call quick_add {
-  "text": "Team meeting tomorrow at 2pm"
-}
-```
-
-2. Show next meeting:
-```
-/mcp calendar call next {}
-```
-
-3. Find free time:
-```
-/mcp calendar call free_today {
-  "min_duration": 30
-}
-```
-
-### Mac Control Commands
-
-1. Run AppleScript:
-```
-/mcp mac call applescript {
-  "script": "tell application \"System Events\" to get name of every process"
-}
-```
-
-2. Control volume:
-```
-/mcp mac call volume {
-  "level": 50
-}
-```
-
-3. Send notification:
-```
-/mcp mac call notification {
-  "title": "Hello",
-  "message": "Time for a break!"
-}
-```
-
-### Windows Control Commands
-
-1. Run PowerShell:
-```
-/mcp win call powershell {
-  "script": "Get-Process | Select-Object -First 5"
-}
-```
-
-2. Run CMD:
-```
-/mcp win call cmd {
-  "command": "dir C:\\"
-}
-```
-
-3. Lock Windows:
-```
-/mcp win call lock {}
-```
-
-4. Take screenshot:
-```
-/mcp win call screenshot {
-  "path": "C:\\Users\\YourName\\Desktop\\shot.png"
-}
-```
 
 ## Project Structure
 
