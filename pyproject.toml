@@ -1,0 +1,23 @@
+[project]
+name = "calendar-assistant"
+version = "0.1.0"
+description = "An MCP calendar assistant server"
+requires-python = ">=3.8"
+dependencies = [
+    "mcp",
+    "pydantic",
+    "google-auth-oauthlib",
+    "google-auth-httplib2",
+    "google-api-python-client",
+    "pytz"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/calendar_assistant"]
+
+[project.scripts]
+mcp-server-calendar = "calendar_assistant.server:main" 
