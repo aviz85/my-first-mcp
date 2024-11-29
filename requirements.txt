@@ -1,12 +1,17 @@
-# Core MCP dependencies
+# Core dependencies
 mcp>=0.1.0
 pydantic>=2.0.0
 
-# Google Calendar API dependencies
+# Calendar Assistant dependencies (optional)
 google-auth-oauthlib>=1.0.0
 google-auth-httplib2>=0.1.0
 google-api-python-client>=2.0.0
 pytz>=2024.1
 
-# Development dependencies
-hatchling>=1.21.0  # For build system
+# Build system
+hatchling>=1.21.0
+
+# Note: Install only the dependencies you need based on your OS:
+# - For Calendar: All dependencies
+# - For Mac: Only core dependencies
+# - For Windows: Only core dependencies
