@@ -157,6 +157,11 @@ async def list_tools() -> list[Tool]:
                     "text": {
                         "type": "string",
                         "description": "Event description (e.g., 'Meeting with John tomorrow at 3pm')"
+                    },
+                    "all_day": {
+                        "type": "boolean",
+                        "description": "Whether this is an all-day event",
+                        "default": False
                     }
                 },
                 "required": ["text"]
@@ -197,6 +202,150 @@ async def list_tools() -> list[Tool]:
                     }
                 }
             }
+        ),
+        Tool(
+            name="list_events",
+            description="List events for a specific date",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "Date in YYYY-MM-DD format (default: today)",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    }
+                }
+            }
+        ),
+        Tool(
+            name="delete_event",
+            description="Delete a single event",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "event_id": {
+                        "type": "string",
+                        "description": "Event ID to delete"
+                    },
+                    "notify": {
+                        "type": "boolean",
+                        "description": "Notify attendees",
+                        "default": True
+                    }
+                },
+                "required": ["event_id"]
+            }
+        ),
+        Tool(
+            name="delete_events",
+            description="Delete multiple events",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "event_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Array of event IDs to delete"
+                    },
+                    "notify": {
+                        "type": "boolean",
+                        "description": "Notify attendees",
+                        "default": True
+                    }
+                },
+                "required": ["event_ids"]
+            }
+        ),
+        Tool(
+            name="edit_event",
+            description="Edit an existing event",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "event_id": {
+                        "type": "string",
+                        "description": "Event ID to edit"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "New event title"
+                    },
+                    "start_time": {
+                        "type": "string",
+                        "description": "New start time (ISO format)"
+                    },
+                    "end_time": {
+                        "type": "string",
+                        "description": "New end time (ISO format)"
+                    },
+                    "notify": {
+                        "type": "boolean",
+                        "description": "Notify attendees",
+                        "default": True
+                    }
+                },
+                "required": ["event_id"]
+            }
+        ),
+        Tool(
+            name="bulk_add",
+            description="Add multiple events at once",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": {
+                                    "type": "string",
+                                    "description": "Event title"
+                                },
+                                "start_time": {
+                                    "type": "string",
+                                    "description": "Start time (ISO format or YYYY-MM-DD for all-day)"
+                                },
+                                "end_time": {
+                                    "type": "string",
+                                    "description": "End time (ISO format or YYYY-MM-DD for all-day)"
+                                },
+                                "all_day": {
+                                    "type": "boolean",
+                                    "description": "Whether this is an all-day event",
+                                    "default": False
+                                }
+                            },
+                            "required": ["title", "start_time"]
+                        }
+                    }
+                },
+                "required": ["events"]
+            }
+        ),
+        Tool(
+            name="search_events",
+            description="Search events by title",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (title)"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results",
+                        "default": 5
+                    },
+                    "days_ahead": {
+                        "type": "integer",
+                        "description": "Number of days to look ahead",
+                        "default": 30
+                    }
+                },
+                "required": ["query"]
+            }
         )
     ]
 
@@ -210,9 +359,24 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent]:
             text=arguments["text"]
         ).execute()
         
+        # If it should be an all-day event, modify it
+        if arguments.get("all_day", False):
+            start_date = event['start'].get('dateTime', event['start'].get('date'))[:10]  # Get YYYY-MM-DD
+            end_date = event['end'].get('dateTime', event['end'].get('date'))[:10]
+            
+            event['start'] = {'date': start_date}
+            event['end'] = {'date': end_date}
+            
+            event = service.events().update(
+                calendarId='primary',
+                eventId=event['id'],
+                body=event
+            ).execute()
+        
         return [TextContent(
             type="text",
-            text=f"✅ Added: {event['summary']}"
+            text=f"✅ Added: {event['summary']}" + 
+                 (" (All day)" if arguments.get("all_day", False) else "")
         )]
     
     elif name == "next":
@@ -303,6 +467,218 @@ async def call_tool(name: str, arguments: Any) -> Sequence[TextContent]:
         return [TextContent(
             type="text",
             text="Free slots today:\n" + "\n".join(free_slots)
+        )]
+    
+    elif name == "list_events":
+        date_str = arguments.get("date", datetime.datetime.now().strftime("%Y-%m-%d"))
+        date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        start = date.replace(hour=0, minute=0, second=0).isoformat() + 'Z'
+        end = date.replace(hour=23, minute=59, second=59).isoformat() + 'Z'
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=start,
+            timeMax=end,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        events = events_result.get('items', [])
+        if not events:
+            return [TextContent(type="text", text=f"No events found for {date_str}")]
+        
+        formatted_events = []
+        for event in events:
+            start = event['start'].get('dateTime', event['start'].get('date'))
+            end = event['end'].get('dateTime', event['end'].get('date'))
+            formatted_events.append(
+                f"• {start} - {end}\n"
+                f"  {event['summary']}\n"
+                f"  ID: {event['id']}"
+            )
+        
+        return [TextContent(
+            type="text",
+            text=f"Events for {date_str}:\n\n" + "\n\n".join(formatted_events)
+        )]
+    
+    elif name == "delete_event":
+        try:
+            service.events().delete(
+                calendarId='primary',
+                eventId=arguments["event_id"],
+                sendUpdates='all' if arguments.get('notify', True) else 'none'
+            ).execute()
+            return [TextContent(
+                type="text",
+                text=f"✅ Event {arguments['event_id']} deleted successfully"
+            )]
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=f"❌ Failed to delete event: {str(e)}"
+            )]
+    
+    elif name == "delete_events":
+        results = []
+        for event_id in arguments["event_ids"]:
+            try:
+                service.events().delete(
+                    calendarId='primary',
+                    eventId=event_id,
+                    sendUpdates='all' if arguments.get('notify', True) else 'none'
+                ).execute()
+                results.append(f"✅ Event {event_id} deleted successfully")
+            except Exception as e:
+                results.append(f"❌ Failed to delete event {event_id}: {str(e)}")
+        
+        return [TextContent(
+            type="text",
+            text="\n".join(results)
+        )]
+    
+    elif name == "edit_event":
+        try:
+            event = service.events().get(
+                calendarId='primary',
+                eventId=arguments["event_id"]
+            ).execute()
+            
+            if "title" in arguments:
+                event["summary"] = arguments["title"]
+            if "start_time" in arguments:
+                event["start"]["dateTime"] = arguments["start_time"]
+            if "end_time" in arguments:
+                event["end"]["dateTime"] = arguments["end_time"]
+            
+            updated_event = service.events().update(
+                calendarId='primary',
+                eventId=arguments["event_id"],
+                body=event,
+                sendUpdates='all' if arguments.get('notify', True) else 'none'
+            ).execute()
+            
+            return [TextContent(
+                type="text",
+                text=f"✅ Event updated:\n"
+                     f"Title: {updated_event['summary']}\n"
+                     f"Start: {updated_event['start'].get('dateTime', updated_event['start'].get('date'))}\n"
+                     f"End: {updated_event['end'].get('dateTime', updated_event['end'].get('date'))}"
+            )]
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=f"❌ Failed to update event: {str(e)}"
+            )]
+    
+    elif name == "bulk_add":
+        results = []
+        for event_data in arguments["events"]:
+            try:
+                if event_data.get("all_day", False):
+                    # For all-day events, use date instead of dateTime
+                    start_date = event_data["start_time"][:10]  # Get YYYY-MM-DD
+                    end_date = event_data.get("end_time", start_date)[:10]
+                    event = {
+                        'summary': event_data["title"],
+                        'start': {'date': start_date},
+                        'end': {'date': end_date}
+                    }
+                else:
+                    event = {
+                        'summary': event_data["title"],
+                        'start': {'dateTime': event_data["start_time"]},
+                        'end': {'dateTime': event_data.get("end_time", 
+                               # Default to start_time + 1 hour if no end_time
+                               (datetime.datetime.fromisoformat(event_data["start_time"]) + 
+                                timedelta(hours=1)).isoformat())}
+                    }
+                
+                created_event = service.events().insert(
+                    calendarId='primary',
+                    body=event
+                ).execute()
+                
+                results.append(
+                    f"✅ Added: {created_event['summary']}\n"
+                    f"   ID: {created_event['id']}" +
+                    (" (All day)" if event_data.get("all_day", False) else "")
+                )
+            except Exception as e:
+                results.append(f"❌ Failed to add event '{event_data['title']}': {str(e)}")
+        
+        return [TextContent(
+            type="text",
+            text="\n\n".join(results)
+        )]
+    
+    elif name == "search_events":
+        query = arguments["query"].lower()
+        max_results = arguments.get("max_results", 5)
+        days_ahead = arguments.get("days_ahead", 30)
+        
+        now = datetime.datetime.utcnow()
+        end = now + timedelta(days=days_ahead)
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=now.isoformat() + 'Z',
+            timeMax=end.isoformat() + 'Z',
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+        
+        events = events_result.get('items', [])
+        if not events:
+            return [TextContent(type="text", text="No events found")]
+        
+        # Score and sort events by relevance
+        scored_events = []
+        for event in events:
+            title = event.get('summary', '').lower()
+            score = 0
+            
+            # Exact match gets highest score
+            if query == title:
+                score = 100
+            # Contains full query as substring
+            elif query in title:
+                score = 80
+            else:
+                # Score based on word matches
+                query_words = set(query.split())
+                title_words = set(title.split())
+                matching_words = query_words & title_words
+                if matching_words:
+                    score = (len(matching_words) / len(query_words)) * 60
+            
+            if score > 0:
+                scored_events.append((score, event))
+        
+        # Sort by score and take top results
+        scored_events.sort(reverse=True)
+        matches = scored_events[:max_results]
+        
+        if not matches:
+            return [TextContent(
+                type="text",
+                text=f"No events found matching '{arguments['query']}'"
+            )]
+        
+        formatted_events = []
+        for _, event in matches:
+            start = event['start'].get('dateTime', event['start'].get('date'))
+            end = event['end'].get('dateTime', event['end'].get('date'))
+            formatted_events.append(
+                f"• {event['summary']}\n"
+                f"  When: {start} - {end}\n"
+                f"  ID: {event['id']}"
+            )
+        
+        return [TextContent(
+            type="text",
+            text=f"Found {len(matches)} matching events:\n\n" + 
+                 "\n\n".join(formatted_events)
         )]
     
     raise ValueError(f"Unknown tool: {name}")

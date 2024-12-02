@@ -15,3 +15,6 @@ hatchling>=1.21.0
 # - For Calendar: All dependencies
 # - For Mac: Only core dependencies
 # - For Windows: Only core dependencies
+
+# Add to existing requirements
+watchdog>=3.0.0
